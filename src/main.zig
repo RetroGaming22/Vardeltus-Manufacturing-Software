@@ -1,19 +1,26 @@
 // raylib-zig (c) Nikolas Wipper 202// raylib-zig (c) Nikolas Wipper 2023
 
+// Zig definitions
 const std = @import("std");
 const rl = @import("raylib");
 const stdout = std.io.getStdOut().writer();
 const stdin = std.io.getStdIn();
 
+// Custom hardcoded values:
+const clear: rl.Color = rl.Color.init(0, 0, 0, 0);
+
+/// Indexes:
 // This (points being stored in an array) seems really bad, but I am not sure by how much or how to make it better at the mome.
 var points: [64]rl.Vector2 = undefined;
 var index: u8 = 0;
 // Index-1 doesn't work for a slice, so I'll just store the last color value.
 var previousColor: u8 = undefined;
 var colorIndex: [64]u8 = undefined;
+
+/// User Defined values:
 // Color codes are found in the colorParser function.
 const defaultColor: u8 = 1;
-const clear: rl.Color = rl.Color.init(0, 0, 0, 0);
+const clearKey: rl.KeyboardKey = rl.KeyboardKey.key_backspace;
 
 pub fn main() anyerror!void {
     // Initialization
@@ -34,6 +41,14 @@ pub fn main() anyerror!void {
     // Main game loop
     while (!rl.windowShouldClose()) { // Detect window close button or ESC key
         // Update
+
+        if (rl.isKeyPressed(clearKey)) {
+            points = undefined;
+            index = 0;
+            previousColor = undefined;
+            colorIndex = undefined;
+            colorIndex[1] = defaultColor;
+        }
 
         colorEncoder(rl.getKeyPressed());
 
