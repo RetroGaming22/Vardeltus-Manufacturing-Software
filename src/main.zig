@@ -6,13 +6,14 @@ const rl = @import("raylib");
 const stdout = std.io.getStdOut().writer();
 const stdin = std.io.getStdIn();
 
-/// Indexes:
+/// Indexes and program variables::
 // This (points being stored in an array) seems really bad, but I am not sure by how much or how to make it better at the mome.
 var points: [128]rl.Vector2 = undefined;
 var index: u9 = 0;
 // Index-1 doesn't work for a slice, so I'll just store the last color value.
 var previousColor: u8 = undefined;
 var colorIndex: [128]u8 = undefined;
+var lineThickness: f32 = 1;
 
 /// User Defined values:
 // Color codes are found in the colorParser function.
@@ -45,20 +46,12 @@ pub fn main() anyerror!void {
     while (!rl.windowShouldClose()) { // Detect window close button or ESC key
         // Update
 
-        if (rl.isKeyPressed(clearKey)) {
-            points = undefined;
-            previousColor = undefined;
-            colorIndex = undefined;
-            index = 0;
-        }
+        // Sees if clear or back key were pressed respectfully and then does the respective actions if so.
+        clearScreen();
+        removeLastLine();
 
-        if (rl.isKeyPressed(backKey) and index >= 1) {
-            points[index] = undefined;
-            //previous color might have some issues here since the "correct"
-            previousColor = colorIndex[index - 2];
-            colorIndex[index] = undefined;
-            index -= 1;
-        }
+        //Add a thing where you are able to input the Line thickness instead of just incrementing it. (make sure the fact that it is f32 is known)
+        try lineThicknessChange(rl.getKeyPressed());
 
         colorEncoder(rl.getKeyPressed());
 
@@ -81,7 +74,7 @@ pub fn main() anyerror!void {
 
         if (index >= 2) {
             for (1..index) |i| {
-                rl.drawLineV(points[i - 1], points[i], colorParser(colorIndex[i]));
+                rl.drawLineEx(points[i - 1], points[i], lineThickness, colorParser(colorIndex[i]));
             }
         }
     }
@@ -168,5 +161,40 @@ fn colorParser(entry: u8) rl.Color {
                 return colorParser(defaultColor);
             }
         },
+    }
+}
+
+fn lineThicknessChange(key: rl.KeyboardKey) !void {
+    switch (key) {
+        rl.KeyboardKey.key_up => {
+            lineThickness += 1;
+            try stdout.print("Line Thickness: {d}\n", .{lineThickness});
+        },
+        rl.KeyboardKey.key_down => {
+            if (lineThickness > 1) {
+                lineThickness -= 1;
+            }
+            try stdout.print("Line Thickness: {d}\n", .{lineThickness});
+        },
+        else => {},
+    }
+}
+
+fn clearScreen() void {
+    if (rl.isKeyPressed(clearKey)) {
+        points = undefined;
+        previousColor = undefined;
+        colorIndex = undefined;
+        index = 0;
+    }
+}
+
+fn removeLastLine() void {
+    if (rl.isKeyPressed(backKey) and index >= 1) {
+        points[index] = undefined;
+        //previous color might have some issues here since the "correct"
+        previousColor = colorIndex[index - 2];
+        colorIndex[index] = undefined;
+        index -= 1;
     }
 }
