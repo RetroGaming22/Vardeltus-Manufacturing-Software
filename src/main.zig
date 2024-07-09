@@ -6,31 +6,34 @@ const rl = @import("raylib");
 const stdout = std.io.getStdOut().writer();
 const stdin = std.io.getStdIn();
 
-// Custom hardcoded values:
-const clear: rl.Color = rl.Color.init(0, 0, 0, 0);
-
 /// Indexes:
 // This (points being stored in an array) seems really bad, but I am not sure by how much or how to make it better at the mome.
-var points: [64]rl.Vector2 = undefined;
-var index: u8 = 0;
+var points: [128]rl.Vector2 = undefined;
+var index: u9 = 0;
 // Index-1 doesn't work for a slice, so I'll just store the last color value.
 var previousColor: u8 = undefined;
-var colorIndex: [64]u8 = undefined;
+var colorIndex: [128]u8 = undefined;
 
 /// User Defined values:
 // Color codes are found in the colorParser function.
-const defaultColor: u8 = 1;
-const clearKey: rl.KeyboardKey = rl.KeyboardKey.key_backspace;
+const defaultColor: u8 = 5;
+// Clears screen.
+const clearKey: rl.KeyboardKey = rl.KeyboardKey.key_delete;
+// Removes last placed line.
+const backKey: rl.KeyboardKey = rl.KeyboardKey.key_backspace;
+
+/// Custom hardcoded values:
+const clear: rl.Color = rl.Color.init(0, 0, 0, 0);
+// The screen and display values will be figured out later, but now they are hardcoded.
+const screenWidth = 1200;
+const screenHeight = 600;
+//const displayHeight = 1080;
+//const displayWidth = 1920;
 
 pub fn main() anyerror!void {
     // Initialization
 
-    const screenWidth = 1200;
-    const screenHeight = 600;
-    //const displayHeight = 1080;
-    //const displayWidth = 1920;
-
-    // This takes advatage of the colorParser's code that it uses to "look back" at the previous color to set a default color if one is not inputted before the first line needs to be drawn. (Since colorIndex is only ever accessed at index values >1, this is fine.)
+    // First value set so that it doesn't return the previous color when called.
     colorIndex[1] = defaultColor;
 
     rl.initWindow(screenWidth, screenHeight, "Vardeltus Manufacturing Software");
@@ -44,10 +47,17 @@ pub fn main() anyerror!void {
 
         if (rl.isKeyPressed(clearKey)) {
             points = undefined;
-            index = 0;
             previousColor = undefined;
             colorIndex = undefined;
-            colorIndex[1] = defaultColor;
+            index = 0;
+        }
+
+        if (rl.isKeyPressed(backKey) and index >= 1) {
+            points[index] = undefined;
+            //previous color might have some issues here since the "correct"
+            previousColor = colorIndex[index - 2];
+            colorIndex[index] = undefined;
+            index -= 1;
         }
 
         colorEncoder(rl.getKeyPressed());
