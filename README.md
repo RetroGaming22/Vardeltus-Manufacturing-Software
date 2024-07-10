@@ -11,3 +11,8 @@ While [FreeCAD](https://www.freecad.org/) is FOSS and does fit VMS's ideal pract
 # To-do:
 - Make an actual CAD software (currently it is just a program which makes lines via user mouse inputs)
 - Redo this README.md so that it feels less like a manifesto and is less "*righteous*" as well as adding useful information here.
+
+# Software Used:
+VMS is written in [Zig](https://github.com/ziglang/zig/)
+
+VMS was built off of Nikolas Wipper's port of [Raylib 5](https://github.com/raysan5/raylib) - [Raylib Zig](https://github.com/Not-Nik/raylib-zig)
