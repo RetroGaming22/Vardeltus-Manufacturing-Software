@@ -10,18 +10,28 @@ const stdin = std.io.getStdIn();
 // This (points being stored in an array) seems really bad, but I am not sure by how much or how to make it better at the mome.
 var points: [128]rl.Vector2 = undefined;
 var index: u9 = 0;
+var selLinePoints: [128]rl.Vector2 = undefined;
+var selLineIndex: u9 = 0;
 // Index-1 doesn't work for a slice, so I'll just store the last color value.
-var previousColor: u8 = undefined;
-var colorIndex: [128]u8 = undefined;
-var lineThickness: f32 = 1;
+var previousColor: u5 = undefined;
+var colorIndex: [128]u5 = undefined;
+// Technically lineThickness can be f32 but I don't see why it would need to be above f16 (with a max value of 65.5k) and if it were to be higher then it might not work with drawSelLine when it adds it and selBoarderThickness together
+var lineThickness: f16 = 1;
+const selBoarderThickness: f16 = 2;
 
 /// User Defined values:
 // Color codes are found in the colorParser function.
-const defaultColor: u8 = 5;
+const defaultColor: u5 = 5;
+const selBoarderColor: u5 = 7;
 // Clears screen.
 const clearKey: rl.KeyboardKey = rl.KeyboardKey.key_delete;
 // Removes last placed line.
 const backKey: rl.KeyboardKey = rl.KeyboardKey.key_backspace;
+// The button used to select objects
+const selButton: rl.MouseButton = rl.MouseButton.mouse_button_right;
+const holdSelKey: rl.KeyboardKey = rl.KeyboardKey.key_left_shift;
+// The number of pixels that create an area where an object is considered selected if clicked
+const selectionThreshold: i32 = 10;
 
 /// Custom hardcoded values:
 const clear: rl.Color = rl.Color.init(0, 0, 0, 0);
@@ -60,33 +70,20 @@ pub fn main() anyerror!void {
         rl.clearBackground(rl.Color.black);
 
         // Sees if user added a point and then stores the point data to points while incrementing index.
-        if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
-            // index is set to points.len so that you don't have to dig around in the code to find this if statement. They should have the same max value/array length so it should be fine.
-            // checks to see if index is at max capacity
-            if (index == (points.len - 1)) {
-                // Debug statement telling the user if it is at max capacity
-                try stdout.print("Input ignored. Index has reached max capacity ({d}).\n", .{index});
-            } else {
-                // Stores new point in points
-                points[index] = rl.getMousePosition();
-                // Increments index
-                index += 1;
-                // Debug statement to tell the user what the index is
-                try stdout.print("index is: {d}\n", .{index});
-            }
-        }
+        try Lines();
+
+        // Figure out is the user is pressing the selButton and is near a line where it will then store the value in selPoints.
+        selectLines();
 
         // Begins raylib drawing
         rl.beginDrawing();
-        // Waits to end it until we want to
+        // Waits to end it until we want to end the drawing
         defer rl.endDrawing();
 
-        // Draws the lines with the previous point and current point with current color and current lineThickness.
-        if (index >= 2) {
-            for (1..index) |i| {
-                rl.drawLineEx(points[i - 1], points[i], lineThickness, colorParser(colorIndex[i]));
-            }
-        }
+        // Draws lines if there are enough points
+        drawLines();
+        // if there are selLinePoints, it will draw the selLines
+        drawSelLines();
     }
 }
 
@@ -213,5 +210,74 @@ fn removeLastLine() void {
         previousColor = colorIndex[index - 2];
         colorIndex[index] = undefined;
         index -= 1;
+    }
+}
+
+fn clearSelLines() void {
+    selLinePoints = undefined;
+    selLineIndex = 0;
+}
+
+// Sees if user added a point and then stores the point data to points while incrementing index.
+fn Lines() !void {
+    if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
+        // index is set to points.len so that you don't have to dig around in the code to find this if statement. They should have the same max value/array length so it should be fine.
+        // checks to see if index is at max capacity
+        if (index == (points.len - 1)) {
+            // Debug statement telling the user if it is at max capacity
+            try stdout.print("Input ignored. Index has reached max capacity ({d}).\n", .{index});
+        } else {
+            // Stores new point in points
+            points[index] = rl.getMousePosition();
+            // Increments index
+            index += 1;
+            // Debug statement to tell the user what the index is
+            try stdout.print("index is: {d}\n", .{index});
+        }
+    }
+}
+
+fn selectLines() void {
+    // Checks to see if selButton is pressed and that there are enough points to check for selected lines. If so, it will determine what/if lines are selected and then store them if there are
+    if (rl.isMouseButtonPressed(selButton) and index >= 2) {
+        if (!rl.isKeyDown(holdSelKey)) {
+            clearSelLines();
+        }
+
+        // Increments through all of the stored points
+        for (1..index) |i| {
+
+            // Defintions for the first stored point, second stored point, and mouse position.
+            const point1: rl.Vector2 = points[i - 1];
+            const point2: rl.Vector2 = points[i];
+            const currentPoint: rl.Vector2 = rl.getMousePosition();
+            // Checks to see if the points to see if they have been selected.
+            if (rl.checkCollisionPointLine(currentPoint, point1, point2, selectionThreshold)) {
+                //Stores selLinePoints and then increments the respective index.
+                selLinePoints[selLineIndex] = point1;
+                selLinePoints[selLineIndex + 1] = point2;
+                selLineIndex += 2;
+            }
+        }
+    }
+}
+
+// Draws lines if there are enough points
+fn drawLines() void {
+    if (index >= 2) {
+        for (1..index) |i| {
+            rl.drawLineEx(points[i - 1], points[i], lineThickness, colorParser(colorIndex[i]));
+        }
+    }
+}
+
+// if there are selLinePoints, it will draw the selLines
+fn drawSelLines() void {
+    if (selLineIndex >= 2) {
+        for (0..selLineIndex) |i| {
+            if (i % 2 == 0) {
+                rl.drawLineEx(selLinePoints[i], selLinePoints[i + 1], (lineThickness + selBoarderThickness), colorParser(selBoarderColor));
+            }
+        }
     }
 }
