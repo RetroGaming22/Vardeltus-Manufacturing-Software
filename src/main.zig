@@ -60,9 +60,6 @@ pub fn main() anyerror!void {
         clearScreen();
         removeLastLine();
 
-        // Checks to see if user wants to change the line thickness
-        try lineThicknessChange(rl.getKeyPressed());
-
         // Checks to see if the user wants to change the line color and then stores it in colorIndex
         colorEncoder(rl.getKeyPressed());
 
@@ -170,25 +167,6 @@ fn colorParser(entry: u8) rl.Color {
                 return colorParser(defaultColor);
             }
         },
-    }
-}
-
-// Checks to see if user wants to change the line thickness
-fn lineThicknessChange(key: rl.KeyboardKey) !void {
-    switch (key) {
-        // Increment lineThickness up (with debug message)
-        rl.KeyboardKey.key_up => {
-            lineThickness += 1;
-            try stdout.print("Line Thickness: {d}\n", .{lineThickness});
-        },
-        // Increment lineThickness down (with debug message)
-        rl.KeyboardKey.key_down => {
-            if (lineThickness > 1) {
-                lineThickness -= 1;
-            }
-            try stdout.print("Line Thickness: {d}\n", .{lineThickness});
-        },
-        else => {},
     }
 }
 
