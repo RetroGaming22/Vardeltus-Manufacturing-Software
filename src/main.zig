@@ -298,7 +298,7 @@ fn moveSelLines(key: rl.KeyboardKey) !void {
             if (i % 2 == 0) {
                 switch (key) {
                     rl.KeyboardKey.key_left => {
-                        selPoint.x -= selLinesMoveAmount;
+                        selPoint.x -= 5;
                         try stdout.print("Tried to move selPoint left\n", .{});
                     },
                     rl.KeyboardKey.key_right => {
