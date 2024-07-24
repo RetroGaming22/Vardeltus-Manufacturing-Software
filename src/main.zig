@@ -7,7 +7,7 @@ const rl = @import("raylib");
 const stdout = std.io.getStdOut().writer();
 const stdin = std.io.getStdIn();
 
-//// Indexes and program variables::
+// Indexes and program variables::
 // This (points being stored in an array) seems really bad, but I am not sure by how much or how to make it better at the mome.
 /// Stores the points for lines
 var points: [128]rl.Vector2 = undefined;
@@ -22,7 +22,7 @@ var previousColor: u5 = undefined;
 /// Stores the encoded colors of the lines
 var colorIndex: [128]u5 = undefined;
 
-//// User Defined values:
+// User Defined values:
 // Technically lineThickness can be f32 but I don't see why it would need to be above f16 (with a max value of 65.5k) and if it were to be higher then it might not work with drawSelLine when it adds it and selBoarderThickness together
 /// The thickness of the lines
 var lineThickness: f16 = 1;
@@ -30,8 +30,8 @@ var lineThickness: f16 = 1;
 const selBoarderThickness: f16 = 2;
 /// The thickness of the grid lines
 const gridLineThickness: f16 = 2;
-/// The spacing between the lines of the grid. Set to selLinesMoveAmount to match the move distance
-const gridSpacing: u16 = selLinesMoveAmount;
+/// The spacing between the lines of the grid in pixels.
+const gridSpacing: u16 = 50;
 // Color codes are found in the colorParser function.
 /// The default color
 const defaultColor: u5 = 5;
@@ -49,22 +49,15 @@ const selButton: rl.MouseButton = rl.MouseButton.mouse_button_right;
 const holdSelKey: rl.KeyboardKey = rl.KeyboardKey.key_left_shift;
 /// The number of pixels that create an area where an object is considered selected if clicked
 const selectionThreshold: i32 = 10;
-/// How far the selLine get moved
-const selLinesMoveAmount: u8 = 50;
 // Draws a grid with selLinesMoveAmount spacing
-const Grid: bool = true;
-// autoConnectLines is temporarily disabled as I don't see a way for selections of the inivisble lines being able to be stopped with the current implementation of drawLines.
-/// Whether or not the lines automatically connect from end to end.
-//const autoConnectLines: bool = false;
+const grid: bool = true;
 
-//// Custom hardcoded values:
+// Custom hardcoded values:
 /// A clear "color"
 const clear: rl.Color = rl.Color.init(0, 0, 0, 0);
 // The screen and display values will be figured out later, but now they are hardcoded.
 const screenWidth = 1200;
 const screenHeight = 600;
-//const displayHeight = 1080;
-//const displayWidth = 1920;
 
 pub fn main() anyerror!void {
     // Initialization
@@ -73,7 +66,8 @@ pub fn main() anyerror!void {
     colorIndex[0] = defaultColor;
 
     rl.initWindow(screenWidth, screenHeight, "Vardeltus Manufacturing Software");
-    defer rl.closeWindow(); // Closes window
+    // Closes Window when finished
+    defer rl.closeWindow();
 
     // Sets FPS to 60
     rl.setTargetFPS(60);
@@ -95,6 +89,7 @@ pub fn main() anyerror!void {
         // Clears the background to be drawn on.
         rl.clearBackground(rl.Color.black);
 
+        // Draws a grid in the background if grid = true
         drawGrid();
 
         // Sees if user added a point and then stores the point data to points while incrementing index.
@@ -102,15 +97,6 @@ pub fn main() anyerror!void {
 
         // Figure out is the user is pressing the selButton and is near a line where it will then store the value in selPoints.
         selectLines();
-
-        if (currentPressedKey == rl.KeyboardKey.key_t) {
-            for (0..4) |i| {
-                try stdout.print("I:{d}\n", .{i});
-            }
-        }
-
-        // Checks to see if selLines should be moved and moves them
-        //try moveSelLines(currentPressedKey);
 
         // Begins raylib drawing
         rl.beginDrawing();
@@ -340,9 +326,6 @@ fn drawLines() !void {
     // This makes sure that there are enough points to draw a line
     if (index >= 2) {
         for (0..(index - 1)) |i| {
-            // If autoConnectLines is set to false then it will not draw the connecting lines.
-            // AutoConnectLines is disable
-            //if (!autoConnectLines and i % 2 != 0) continue;
             // This draws the lines
             rl.drawLineEx(points[i], points[i + 1], lineThickness, colorParser(colorIndex[i]));
         }
@@ -360,40 +343,10 @@ fn drawSelLines() void {
     }
 }
 
-//// Checks to see if selLines should be moved and moves them
-//fn moveSelLines(key: rl.KeyboardKey) !void {
-//    // Makes sure that there are selLines
-//    if (selLineIndex >= 1) {
-//
-//        for (0..selLineIndex) |i| {
-//            var selPoint1 = &points[selLinePoints[i]];
-//            //var selPoint2 = &points[selLinePoints[i] + 1];
-//            //try stdout.print("I: {d}\n", .{i});
-//            switch (key) {
-//                rl.KeyboardKey.key_left => {
-//                   selPoint1.x -= selLinesMoveAmount;
-//                    //      selPoint2.x -= selLinesMoveAmount;
-//                },
-//                rl.KeyboardKey.key_right => {
-//                    selPoint1.x += selLinesMoveAmount;
-//                   //     selPoint2.x += selLinesMoveAmount;
-//                },
-//                rl.KeyboardKey.key_down => {
-//                    selPoint1.y += selLinesMoveAmount;
-//                    //    selPoint2.y += selLinesMoveAmount;
-//                },
-//                rl.KeyboardKey.key_up => {
-//                    selPoint1.y -= selLinesMoveAmount;
-//                    //    selPoint2.y -= selLinesMoveAmount;
-//                },
-//                else => {},
-//            }
-//        }
-//    }
-//}
-
+/// Draws a grid in the background if grid = true
 fn drawGrid() void {
-    if (!Grid) return;
+    // Stops the grid from being drawn if grid is false
+    if (!grid) return;
 
     var startPos: rl.Vector2 = undefined;
     var endPos: rl.Vector2 = undefined;
