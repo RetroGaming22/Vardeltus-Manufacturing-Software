@@ -1,4 +1,5 @@
-// VMS is built using raylib-zig (c) Nikolas Wipper 202// raylib-zig (c) Nikolas Wipper 2023
+// VMS is built using raylib-zig (c) Nikolas Wipper 2023
+// As well as using the zig language by Andrew Kelly
 
 // Zig definitions
 const std = @import("std");
@@ -6,42 +7,58 @@ const rl = @import("raylib");
 const stdout = std.io.getStdOut().writer();
 const stdin = std.io.getStdIn();
 
-/// Indexes and program variables::
+//// Indexes and program variables::
 // This (points being stored in an array) seems really bad, but I am not sure by how much or how to make it better at the mome.
-// Stores the points for lines
+/// Stores the points for lines
 var points: [128]rl.Vector2 = undefined;
-// Stores the number of entries in points
+/// Stores the number of entries in points
 var index: u8 = 0;
-// Stores the index of selected lines.
+/// Stores the index of selected lines.
 var selLinePoints: [128]u9 = undefined;
-// Stores the number of entries in selLinePoints
+/// Stores the number of entries in selLinePoints
 var selLineIndex: u8 = 0;
-// Index-1 doesn't work for a slice, so I'll just store the last color value.
+/// Index-1 doesn't work for a slice, so I'll just store the last color value.
 var previousColor: u5 = undefined;
-// Stores the encoded colors of the lines
+/// Stores the encoded colors of the lines
 var colorIndex: [128]u5 = undefined;
+
+//// User Defined values:
 // Technically lineThickness can be f32 but I don't see why it would need to be above f16 (with a max value of 65.5k) and if it were to be higher then it might not work with drawSelLine when it adds it and selBoarderThickness together
+/// The thickness of the lines
 var lineThickness: f16 = 1;
-// The thickness of the selLine
+/// The thickness of the selLine
 const selBoarderThickness: f16 = 2;
-
-/// User Defined values:
+/// The thickness of the grid lines
+const gridLineThickness: f16 = 2;
+/// The spacing between the lines of the grid. Set to selLinesMoveAmount to match the move distance
+const gridSpacing: u16 = selLinesMoveAmount;
 // Color codes are found in the colorParser function.
+/// The default color
 const defaultColor: u5 = 5;
+/// The color of the selected lines
 const selColor: u5 = 7;
-// Clears screen.
+/// The color of the grid lines
+const gridColor: rl.Color = rl.Color.gray;
+/// Clears screen.
 const clearKey: rl.KeyboardKey = rl.KeyboardKey.key_delete;
-// Removes last placed line.
+/// Removes last placed line.
 const backKey: rl.KeyboardKey = rl.KeyboardKey.key_backspace;
-// The button used to select objects
+/// The button used to select objects
 const selButton: rl.MouseButton = rl.MouseButton.mouse_button_right;
+/// The key used to "maintain" your selection in order to select multiple lines which may not be close together
 const holdSelKey: rl.KeyboardKey = rl.KeyboardKey.key_left_shift;
-// The number of pixels that create an area where an object is considered selected if clicked
+/// The number of pixels that create an area where an object is considered selected if clicked
 const selectionThreshold: i32 = 10;
-const selLinesMoveAmount: u8 = 5;
-const autoConnectLines: bool = true;
+/// How far the selLine get moved
+const selLinesMoveAmount: u8 = 50;
+// Draws a grid with selLinesMoveAmount spacing
+const Grid: bool = true;
+// autoConnectLines is temporarily disabled as I don't see a way for selections of the inivisble lines being able to be stopped with the current implementation of drawLines.
+/// Whether or not the lines automatically connect from end to end.
+//const autoConnectLines: bool = false;
 
-/// Custom hardcoded values:
+//// Custom hardcoded values:
+/// A clear "color"
 const clear: rl.Color = rl.Color.init(0, 0, 0, 0);
 // The screen and display values will be figured out later, but now they are hardcoded.
 const screenWidth = 1200;
@@ -58,7 +75,8 @@ pub fn main() anyerror!void {
     rl.initWindow(screenWidth, screenHeight, "Vardeltus Manufacturing Software");
     defer rl.closeWindow(); // Closes window
 
-    rl.setTargetFPS(60); // Sets FPS to 60
+    // Sets FPS to 60
+    rl.setTargetFPS(60);
 
     // Main loop
     while (!rl.windowShouldClose()) {
@@ -77,14 +95,22 @@ pub fn main() anyerror!void {
         // Clears the background to be drawn on.
         rl.clearBackground(rl.Color.black);
 
+        drawGrid();
+
         // Sees if user added a point and then stores the point data to points while incrementing index.
         try Lines();
 
         // Figure out is the user is pressing the selButton and is near a line where it will then store the value in selPoints.
         selectLines();
 
+        if (currentPressedKey == rl.KeyboardKey.key_t) {
+            for (0..4) |i| {
+                try stdout.print("I:{d}\n", .{i});
+            }
+        }
+
         // Checks to see if selLines should be moved and moves them
-        try moveSelLines(currentPressedKey);
+        //try moveSelLines(currentPressedKey);
 
         // Begins raylib drawing
         rl.beginDrawing();
@@ -101,42 +127,77 @@ pub fn main() anyerror!void {
     }
 }
 
-//When the user inputs 1-9 that value will be stored in the future entry (index - 1 because of fun incrementing variables stuff.) of the colorIndex (so that the color of the line you are about to create is changed and not the past line.)
+/// When the user inputs 1-9 that value will be stored in the future entry (index - 1 because of fun incrementing variables stuff.) of the colorIndex (so that the color of the line you are about to create is changed and not the past line.)
 fn colorEncoder(key: rl.KeyboardKey) void {
-    switch (key) {
-        rl.KeyboardKey.key_one => {
-            colorIndex[index - 1] = 1;
-        },
-        rl.KeyboardKey.key_two => {
-            colorIndex[index - 1] = 2;
-        },
-        rl.KeyboardKey.key_three => {
-            colorIndex[index - 1] = 3;
-        },
-        rl.KeyboardKey.key_four => {
-            colorIndex[index - 1] = 4;
-        },
-        rl.KeyboardKey.key_five => {
-            colorIndex[index - 1] = 5;
-        },
-        rl.KeyboardKey.key_six => {
-            colorIndex[index - 1] = 6;
-        },
-        rl.KeyboardKey.key_seven => {
-            colorIndex[index - 1] = 7;
-        },
-        rl.KeyboardKey.key_eight => {
-            colorIndex[index - 1] = 8;
-        },
-        rl.KeyboardKey.key_nine => {
-            colorIndex[index - 1] = 9;
-        },
-        // Doesn't do anything if none of the keys are pressed.
-        else => {},
+    // If you try to assign a color value to colorIndex of -1, you can see where that would be an issue. I am not sure if this is the best implementation, but it is an implementation.
+    if (index == 0) {
+        switch (key) {
+            rl.KeyboardKey.key_one => {
+                colorIndex[index] = 1;
+            },
+            rl.KeyboardKey.key_two => {
+                colorIndex[index] = 2;
+            },
+            rl.KeyboardKey.key_three => {
+                colorIndex[index] = 3;
+            },
+            rl.KeyboardKey.key_four => {
+                colorIndex[index] = 4;
+            },
+            rl.KeyboardKey.key_five => {
+                colorIndex[index] = 5;
+            },
+            rl.KeyboardKey.key_six => {
+                colorIndex[index] = 6;
+            },
+            rl.KeyboardKey.key_seven => {
+                colorIndex[index] = 7;
+            },
+            rl.KeyboardKey.key_eight => {
+                colorIndex[index] = 8;
+            },
+            rl.KeyboardKey.key_nine => {
+                colorIndex[index] = 9;
+            },
+            // Doesn't do anything if none of the keys are pressed.
+            else => {},
+        }
+    } else {
+        switch (key) {
+            rl.KeyboardKey.key_one => {
+                colorIndex[index - 1] = 1;
+            },
+            rl.KeyboardKey.key_two => {
+                colorIndex[index - 1] = 2;
+            },
+            rl.KeyboardKey.key_three => {
+                colorIndex[index - 1] = 3;
+            },
+            rl.KeyboardKey.key_four => {
+                colorIndex[index - 1] = 4;
+            },
+            rl.KeyboardKey.key_five => {
+                colorIndex[index - 1] = 5;
+            },
+            rl.KeyboardKey.key_six => {
+                colorIndex[index - 1] = 6;
+            },
+            rl.KeyboardKey.key_seven => {
+                colorIndex[index - 1] = 7;
+            },
+            rl.KeyboardKey.key_eight => {
+                colorIndex[index - 1] = 8;
+            },
+            rl.KeyboardKey.key_nine => {
+                colorIndex[index - 1] = 9;
+            },
+            // Doesn't do anything if none of the keys are pressed.
+            else => {},
+        }
     }
 }
 
-// Decodes the colorIndex entry and returns the respective color.
+/// Decodes the colorIndex entry and returns the respective color.
 fn colorParser(entry: u8) rl.Color {
     switch (entry) {
         1 => {
@@ -187,7 +248,7 @@ fn colorParser(entry: u8) rl.Color {
     }
 }
 
-// Clears screen of all of the points
+/// Clears screen of all of the points
 fn clearScreen() void {
     if (rl.isKeyPressed(clearKey)) {
         points = undefined;
@@ -195,10 +256,11 @@ fn clearScreen() void {
         colorIndex = undefined;
         index = 0;
         colorIndex[0] = defaultColor;
+        clearSelLines();
     }
 }
 
-// Removes the last line
+/// Removes the last line
 fn removeLastLine() void {
     if (rl.isKeyPressed(backKey) and index >= 1) {
         points[index] = undefined;
@@ -206,15 +268,17 @@ fn removeLastLine() void {
         previousColor = colorIndex[index - 2];
         colorIndex[index] = undefined;
         index -= 1;
+        clearSelLines();
     }
 }
 
+/// Removes the stored selLines
 fn clearSelLines() void {
     selLinePoints = undefined;
     selLineIndex = 0;
 }
 
-// Sees if user added a point and then stores the point data to points while incrementing index.
+/// Sees if user added a point and then stores the point data to points while incrementing index.
 fn Lines() !void {
     if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
         // index is set to points.len so that you don't have to dig around in the code to find this if statement. They should have the same max value/array length so it should be fine.
@@ -236,8 +300,8 @@ fn Lines() !void {
     }
 }
 
+/// Checks to see if selButton is pressed and that there are enough points to check for selected lines. If so, it will determine what/if lines are selected and then store them if there are
 fn selectLines() void {
-    // Checks to see if selButton is pressed and that there are enough points to check for selected lines. If so, it will determine what/if lines are selected and then store them if there are
     if (rl.isMouseButtonPressed(selButton) and index >= 2) {
         if (!rl.isKeyDown(holdSelKey)) {
             clearSelLines();
@@ -250,70 +314,114 @@ fn selectLines() void {
             const point1: rl.Vector2 = points[i];
             const point2: rl.Vector2 = points[i + 1];
             const currentPoint: rl.Vector2 = rl.getMousePosition();
+            var duplicatesPresent: bool = false;
+
             // Checks to see if the points to see if they have been selected.
             if (rl.checkCollisionPointLine(currentPoint, point1, point2, selectionThreshold)) {
-                //Stores selLinePoints and then increments the respective index.
+                // Checks to make sure that no duplicates are stored.
+                for (0..selLineIndex) |j| {
+                    if (i == selLinePoints[j]) {
+                        duplicatesPresent = true;
+                    }
+                }
 
-                selLinePoints[selLineIndex] = @intCast(i);
-                selLinePoints[selLineIndex + 1] = @intCast(i + 1);
-                selLineIndex += 2;
+                //Stores selLinePoints and then increments the respective index unless the point it is about to store is a duplicate.
+                if (!duplicatesPresent) {
+                    selLinePoints[selLineIndex] = @intCast(i);
+                    selLineIndex += 1;
+                }
             }
         }
     }
 }
 
-// Draws lines if there are enough points
+/// Draws lines if there are enough points
 fn drawLines() !void {
     // This makes sure that there are enough points to draw a line
     if (index >= 2) {
         for (0..(index - 1)) |i| {
             // If autoConnectLines is set to false then it will not draw the connecting lines.
-            if (!autoConnectLines and i % 2 != 0) break;
+            // AutoConnectLines is disable
+            //if (!autoConnectLines and i % 2 != 0) continue;
             // This draws the lines
             rl.drawLineEx(points[i], points[i + 1], lineThickness, colorParser(colorIndex[i]));
         }
     }
 }
 
-// if there are selLinePoints, it will draw the selLines
+/// If there are selLinePoints, it will draw the selLines
 fn drawSelLines() void {
-    if (selLineIndex >= 2) {
+    if (selLineIndex >= 1) {
         for (0..selLineIndex) |i| {
-            if (i % 2 == 0) {
-                const point1: rl.Vector2 = points[selLinePoints[i]];
-                const point2: rl.Vector2 = points[selLinePoints[i + 1]];
-                rl.drawLineEx(point1, point2, (lineThickness + selBoarderThickness), colorParser(selColor));
-            }
+            const point1: rl.Vector2 = points[selLinePoints[i]];
+            const point2: rl.Vector2 = points[(selLinePoints[i] + 1)];
+            rl.drawLineEx(point1, point2, (lineThickness + selBoarderThickness), colorParser(selColor));
         }
     }
 }
 
-// Checks to see if selLines should be moved and moves them
-fn moveSelLines(key: rl.KeyboardKey) !void {
-    // Makes sure that there are selLines
-    if (selLineIndex >= 2) {
-        // Only works on selLine pairs
-        for (0..selLineIndex) |i| {
-            var selPoint = points[selLinePoints[i]];
-            if (i % 2 == 0) {
-                switch (key) {
-                    rl.KeyboardKey.key_left => {
-                        selPoint.x -= 5;
-                        try stdout.print("Tried to move selPoint left\n", .{});
-                    },
-                    rl.KeyboardKey.key_right => {
-                        selPoint.x += selLinesMoveAmount;
-                    },
-                    rl.KeyboardKey.key_down => {
-                        selPoint.y -= selLinesMoveAmount;
-                    },
-                    rl.KeyboardKey.key_up => {
-                        selPoint.y += selLinesMoveAmount;
-                    },
-                    rl.KeyboardKey.key_q => try stdout.print("Well This works\n", .{}),
-                    else => {},
-                }
-            }
-        }
+//// Checks to see if selLines should be moved and moves them
+//fn moveSelLines(key: rl.KeyboardKey) !void {
+//    // Makes sure that there are selLines
+//    if (selLineIndex >= 1) {
+//
+//        for (0..selLineIndex) |i| {
+//            var selPoint1 = &points[selLinePoints[i]];
+//            //var selPoint2 = &points[selLinePoints[i] + 1];
+//            //try stdout.print("I: {d}\n", .{i});
+//            switch (key) {
+//                rl.KeyboardKey.key_left => {
+//                   selPoint1.x -= selLinesMoveAmount;
+//                    //      selPoint2.x -= selLinesMoveAmount;
+//                },
+//                rl.KeyboardKey.key_right => {
+//                    selPoint1.x += selLinesMoveAmount;
+//                   //     selPoint2.x += selLinesMoveAmount;
+//                },
+//                rl.KeyboardKey.key_down => {
+//                    selPoint1.y += selLinesMoveAmount;
+//                    //    selPoint2.y += selLinesMoveAmount;
+//                },
+//                rl.KeyboardKey.key_up => {
+//                    selPoint1.y -= selLinesMoveAmount;
+//                    //    selPoint2.y -= selLinesMoveAmount;
+//                },
+//                else => {},
+//            }
+//        }
+//    }
+//}
+
+fn drawGrid() void {
+    if (!Grid) return;
+
+    var startPos: rl.Vector2 = undefined;
+    var endPos: rl.Vector2 = undefined;
+    // The number of vertical grid lines
+    const gridLineNumH: u16 = @truncate(screenHeight / gridSpacing);
+    // The number of vertical grid lines
+    const gridLineNumV: u16 = @truncate(screenWidth / gridSpacing);
+
+    // prepares start and end Pos for drawing the vertical lines
+    startPos.x = 0;
+    endPos.x = screenWidth;
+    // Draws the vertical lines
+    for (0..gridLineNumH) |_| {
+        rl.drawLineEx(startPos, endPos, gridLineThickness, gridColor);
+        startPos.y += gridSpacing;
+        endPos.y += gridSpacing;
+    }
+
+    // Resets the endPos's x cord
+    endPos.x = 0;
+
+    // prepares start and end Pos for drawing the horizontal lines
+    startPos.y = 0;
+    endPos.y = screenHeight;
+    // Draws the vertical lines
+    for (0..gridLineNumV) |_| {
+        rl.drawLineEx(startPos, endPos, gridLineThickness, gridColor);
+        startPos.x += gridSpacing;
+        endPos.x += gridSpacing;
     }
 }
