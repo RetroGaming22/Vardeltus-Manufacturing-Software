@@ -147,7 +147,7 @@ pub fn main() anyerror!void {
         // Draws the objects
         drawObjects();
         // Draws the preview object
-        try drawObjectPreview();
+        drawObjectPreview();
     }
 }
 
@@ -303,7 +303,7 @@ fn storeObjectPoints() !void {
 }
 
 /// Determines if any of the objects have been selected and marks them as so
-fn selObjects() !void {
+fn selObjects() void {
     // If the user is not in selection mode, then this function will be ignored
     if (mode != 's') return;
 
@@ -464,7 +464,7 @@ fn drawObjects() void {
     }
 }
 
-fn drawObjectPreview() !void {
+fn drawObjectPreview() void {
 
     // Doesn't draw the preview object if user is in selection mode, if the current object was just removed, or if the user hasn't inputted the first point of the object (Otherwise when changing color you would notice that the last object changes color as the preview object is drawn above it)
     if (mode == 's' or objects[index].overwrite or (previewObject.p1.equals(objects[index].p1)) == 0) return;
